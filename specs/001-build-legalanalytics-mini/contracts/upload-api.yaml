@@ -1,0 +1,580 @@
+openapi: 3.0.3
+info:
+  title: LegalAnalytics Mini - File Upload API
+  description: CSV file upload and processing endpoints
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://legalanalytics-mini.aws.com/api/v1
+    description: Production server
+
+paths:
+  /upload/employees:
+    post:
+      summary: Upload employee CSV file
+      description: Upload and process a CSV file containing employee data
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with employee data
+                overwrite_existing:
+                  type: boolean
+                  description: Whether to overwrite existing employees with matching emails
+                  default: false
+              required:
+                - file
+      responses:
+        '202':
+          description: File accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Invalid file or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /upload/time-entries:
+    post:
+      summary: Upload time entries CSV file
+      description: Upload and process a CSV file containing time tracking data
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with time entry data
+                validate_employees:
+                  type: boolean
+                  description: Whether to validate that all employees exist
+                  default: true
+                skip_weekends:
+                  type: boolean
+                  description: Whether to skip entries on weekends
+                  default: false
+              required:
+                - file
+      responses:
+        '202':
+          description: File accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Invalid file or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /upload/status/{jobId}:
+    get:
+      summary: Get upload job status
+      description: Check the processing status of an uploaded file
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique identifier for the upload job
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /upload/history:
+    get:
+      summary: Get upload history
+      description: Retrieve history of file uploads and their status
+      parameters:
+        - name: file_type
+          in: query
+          description: Filter by file type
+          required: false
+          schema:
+            type: string
+            enum: [employees, time_entries]
+        - name: status
+          in: query
+          description: Filter by processing status
+          required: false
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+        - name: limit
+          in: query
+          description: Number of records to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Upload history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploads:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UploadRecord'
+                  total:
+                    type: integer
+                    description: Total number of uploads
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /upload/templates/{fileType}:
+    get:
+      summary: Download CSV template
+      description: Download a template CSV file with proper headers and sample data
+      parameters:
+        - name: fileType
+          in: path
+          required: true
+          description: Type of template to download
+          schema:
+            type: string
+            enum: [employees, time_entries]
+        - name: include_samples
+          in: query
+          description: Include sample data rows
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: CSV template file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              description: Attachment filename
+              schema:
+                type: string
+                example: "attachment; filename=employee_template.csv"
+        '400':
+          description: Invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /files/{bucket}/{filename}:
+    get:
+      summary: Download uploaded file (local development)
+      description: Serve uploaded files from local storage (simulates S3 download)
+      parameters:
+        - name: bucket
+          in: path
+          required: true
+          description: Storage bucket name
+          schema:
+            type: string
+            example: "uploads"
+        - name: filename
+          in: path
+          required: true
+          description: File name
+          schema:
+            type: string
+            example: "employees_2023_01.csv"
+      responses:
+        '200':
+          description: File content
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              description: Attachment filename
+              schema:
+                type: string
+                example: "attachment; filename=employees_2023_01.csv"
+            Content-Length:
+              description: File size in bytes
+              schema:
+                type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    UploadResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the upload job
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        message:
+          type: string
+          description: Success message
+          example: "File uploaded successfully and queued for processing"
+        file_info:
+          type: object
+          properties:
+            filename:
+              type: string
+              example: "employees_2023_01.csv"
+            size:
+              type: integer
+              description: File size in bytes
+              example: 2048
+            rows_detected:
+              type: integer
+              description: Number of data rows detected (excluding header)
+              example: 25
+        estimated_processing_time:
+          type: string
+          description: Estimated time for processing completion
+          example: "2-3 minutes"
+        status_url:
+          type: string
+          description: URL to check processing status
+          example: "/api/v1/upload/status/123e4567-e89b-12d3-a456-426614174000"
+      required:
+        - job_id
+        - message
+        - status_url
+
+    JobStatus:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Job identifier
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Current processing status
+          example: "processing"
+        progress:
+          type: object
+          properties:
+            current_row:
+              type: integer
+              description: Current row being processed
+              example: 15
+            total_rows:
+              type: integer
+              description: Total rows to process
+              example: 25
+            percentage:
+              type: number
+              format: float
+              description: Completion percentage
+              example: 60.0
+        file_info:
+          type: object
+          properties:
+            filename:
+              type: string
+              example: "employees_2023_01.csv"
+            file_type:
+              type: string
+              enum: [employees, time_entries]
+              example: "employees"
+            uploaded_at:
+              type: string
+              format: date-time
+              example: "2023-01-15T10:30:00Z"
+        results:
+          type: object
+          properties:
+            processed_rows:
+              type: integer
+              description: Successfully processed rows
+              example: 23
+            failed_rows:
+              type: integer
+              description: Rows that failed processing
+              example: 2
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  row:
+                    type: integer
+                    description: Row number with error
+                  error:
+                    type: string
+                    description: Error description
+                  data:
+                    type: object
+                    description: Row data that caused the error
+        completed_at:
+          type: string
+          format: date-time
+          description: Completion timestamp (if finished)
+          example: "2023-01-15T10:35:00Z"
+        notification_sent:
+          type: boolean
+          description: Whether completion notification was sent
+          example: true
+      required:
+        - job_id
+        - status
+        - file_info
+
+    UploadRecord:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Job identifier
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        filename:
+          type: string
+          description: Original filename
+          example: "employees_2023_01.csv"
+        file_type:
+          type: string
+          enum: [employees, time_entries]
+          description: Type of uploaded file
+          example: "employees"
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Final processing status
+          example: "completed"
+        uploaded_by:
+          type: string
+          description: Username who uploaded the file
+          example: "hr_admin"
+        uploaded_at:
+          type: string
+          format: date-time
+          description: Upload timestamp
+          example: "2023-01-15T10:30:00Z"
+        completed_at:
+          type: string
+          format: date-time
+          description: Completion timestamp
+          example: "2023-01-15T10:35:00Z"
+        processing_summary:
+          type: object
+          properties:
+            total_rows:
+              type: integer
+              description: Total rows in file
+              example: 25
+            successful_rows:
+              type: integer
+              description: Successfully processed rows
+              example: 23
+            failed_rows:
+              type: integer
+              description: Failed rows
+              example: 2
+        file_size:
+          type: integer
+          description: File size in bytes
+          example: 2048
+        storage_info:
+          type: object
+          description: Storage backend information
+          properties:
+            backend:
+              type: string
+              enum: [local, s3]
+              description: Storage backend used
+              example: "local"
+            file_url:
+              type: string
+              description: URL to access the uploaded file
+              example: "http://localhost:8000/files/uploads/employees_2023_01.csv"
+      required:
+        - job_id
+        - filename
+        - file_type
+        - status
+        - uploaded_by
+        - uploaded_at
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: General error message
+          example: "File validation failed"
+        code:
+          type: string
+          description: Error code
+          example: "INVALID_CSV_FORMAT"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              issue:
+                type: string
+                description: Specific validation issue
+                example: "Missing required column 'email'"
+              suggestion:
+                type: string
+                description: How to fix the issue
+                example: "Ensure the CSV has columns: name, email, department, hire_date"
+        supported_formats:
+          type: object
+          description: Information about supported file formats
+          properties:
+            file_types:
+              type: array
+              items:
+                type: string
+              example: ["text/csv", "application/csv"]
+            max_file_size:
+              type: string
+              example: "10MB"
+            required_columns:
+              type: object
+              properties:
+                employees:
+                  type: array
+                  items:
+                    type: string
+                  example: ["name", "email", "department", "hire_date"]
+                time_entries:
+                  type: array
+                  items:
+                    type: string
+                  example: ["employee_email", "date", "hours", "description", "billable"]
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - timestamp
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Upload job not found"
+        code:
+          type: string
+          description: Error code
+          example: "JOB_NOT_FOUND"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - timestamp
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

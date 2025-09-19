@@ -1,0 +1,561 @@
+openapi: 3.0.3
+info:
+  title: LegalAnalytics Mini - Time Entry API
+  description: Time tracking endpoints for billable hours management
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://legalanalytics-mini.aws.com/api/v1
+    description: Production server
+
+paths:
+  /time-entries:
+    get:
+      summary: List time entries
+      description: Retrieve paginated list of time entries with filtering options
+      parameters:
+        - name: employee_id
+          in: query
+          description: Filter by employee ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          description: Filter entries from this date (inclusive)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: Filter entries to this date (inclusive)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: billable
+          in: query
+          description: Filter by billable status
+          required: false
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successful response with time entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  time_entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TimeEntry'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  summary:
+                    $ref: '#/components/schemas/TimeEntrySummary'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create time entry
+      description: Log a new time entry for an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeEntryCreate'
+      responses:
+        '201':
+          description: Time entry created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntry'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /time-entries/{entryId}:
+    get:
+      summary: Get time entry by ID
+      description: Retrieve a specific time entry
+      parameters:
+        - name: entryId
+          in: path
+          required: true
+          description: Unique identifier for the time entry
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Time entry found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntry'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Time entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update time entry
+      description: Update an existing time entry
+      parameters:
+        - name: entryId
+          in: path
+          required: true
+          description: Unique identifier for the time entry
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeEntryUpdate'
+      responses:
+        '200':
+          description: Time entry updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntry'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Time entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete time entry
+      description: Remove a time entry from the system
+      parameters:
+        - name: entryId
+          in: path
+          required: true
+          description: Unique identifier for the time entry
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Time entry deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Time entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /time-entries/summary:
+    get:
+      summary: Get time entry summary
+      description: Get aggregated time entry statistics
+      parameters:
+        - name: employee_id
+          in: query
+          description: Filter by employee ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          description: Summary from this date (inclusive)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: Summary to this date (inclusive)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: group_by
+          in: query
+          description: Group results by time period
+          required: false
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: month
+      responses:
+        '200':
+          description: Time entry summary statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    $ref: '#/components/schemas/TimeEntrySummary'
+                  grouped_data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        period:
+                          type: string
+                          description: Time period (e.g., "2023-01")
+                        total_hours:
+                          type: number
+                          format: float
+                        billable_hours:
+                          type: number
+                          format: float
+                        non_billable_hours:
+                          type: number
+                          format: float
+                        entry_count:
+                          type: integer
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    TimeEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        employee_id:
+          type: string
+          format: uuid
+          description: Employee identifier
+          example: "456e7890-e89b-12d3-a456-426614174000"
+        employee_name:
+          type: string
+          description: Employee name (read-only)
+          example: "John Doe"
+        date:
+          type: string
+          format: date
+          description: Date of work
+          example: "2023-01-15"
+        hours:
+          type: number
+          format: float
+          minimum: 0.01
+          maximum: 24.00
+          description: Hours worked
+          example: 7.5
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Work description
+          example: "Contract review for ABC Corp merger"
+        billable:
+          type: boolean
+          description: Whether time is billable
+          example: true
+        matter_code:
+          type: string
+          maxLength: 20
+          description: Matter or case code
+          example: "ABC-123"
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+          example: "2023-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - id
+        - employee_id
+        - employee_name
+        - date
+        - hours
+        - description
+        - billable
+        - created_at
+        - updated_at
+
+    TimeEntryCreate:
+      type: object
+      properties:
+        employee_id:
+          type: string
+          format: uuid
+          description: Employee identifier
+          example: "456e7890-e89b-12d3-a456-426614174000"
+        date:
+          type: string
+          format: date
+          description: Date of work (cannot be future date)
+          example: "2023-01-15"
+        hours:
+          type: number
+          format: float
+          minimum: 0.01
+          maximum: 24.00
+          description: Hours worked
+          example: 7.5
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Work description
+          example: "Contract review for ABC Corp merger"
+        billable:
+          type: boolean
+          description: Whether time is billable
+          default: true
+          example: true
+        matter_code:
+          type: string
+          maxLength: 20
+          description: Matter or case code (optional)
+          example: "ABC-123"
+      required:
+        - employee_id
+        - date
+        - hours
+        - description
+
+    TimeEntryUpdate:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date of work
+        hours:
+          type: number
+          format: float
+          minimum: 0.01
+          maximum: 24.00
+          description: Hours worked
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Work description
+        billable:
+          type: boolean
+          description: Whether time is billable
+        matter_code:
+          type: string
+          maxLength: 20
+          description: Matter or case code
+
+    TimeEntrySummary:
+      type: object
+      properties:
+        total_hours:
+          type: number
+          format: float
+          description: Total hours across all entries
+          example: 157.5
+        billable_hours:
+          type: number
+          format: float
+          description: Total billable hours
+          example: 142.0
+        non_billable_hours:
+          type: number
+          format: float
+          description: Total non-billable hours
+          example: 15.5
+        entry_count:
+          type: integer
+          description: Total number of entries
+          example: 28
+        utilization_rate:
+          type: number
+          format: float
+          description: Billable hours percentage
+          example: 90.16
+        average_hours_per_day:
+          type: number
+          format: float
+          description: Average hours worked per day
+          example: 7.2
+      required:
+        - total_hours
+        - billable_hours
+        - non_billable_hours
+        - entry_count
+        - utilization_rate
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 20
+        total:
+          type: integer
+          description: Total number of items
+          example: 156
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 8
+      required:
+        - page
+        - limit
+        - total
+        - pages
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Time entry not found"
+        code:
+          type: string
+          description: Error code
+          example: "TIME_ENTRY_NOT_FOUND"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - timestamp
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: General error message
+          example: "Validation failed"
+        code:
+          type: string
+          description: Error code
+          example: "VALIDATION_ERROR"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field name
+                example: "hours"
+              message:
+                type: string
+                description: Field-specific error message
+                example: "Hours must be between 0.01 and 24.00"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - details
+        - timestamp
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
