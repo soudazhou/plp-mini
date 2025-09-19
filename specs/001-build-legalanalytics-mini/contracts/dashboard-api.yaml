@@ -1,0 +1,480 @@
+openapi: 3.0.3
+info:
+  title: LegalAnalytics Mini - Dashboard API
+  description: Analytics and reporting endpoints for law firm dashboard
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://legalanalytics-mini.aws.com/api/v1
+    description: Production server
+
+paths:
+  /dashboard/overview:
+    get:
+      summary: Get dashboard overview metrics
+      description: Retrieve key performance indicators for the dashboard
+      parameters:
+        - name: period
+          in: query
+          description: Time period for metrics calculation
+          required: false
+          schema:
+            type: string
+            enum: [current_month, last_month, quarter, year]
+            default: current_month
+      responses:
+        '200':
+          description: Dashboard overview metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardOverview'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/utilization:
+    get:
+      summary: Get utilization rates by employee
+      description: Calculate utilization rates for all employees
+      parameters:
+        - name: start_date
+          in: query
+          description: Start date for calculation
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: End date for calculation
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: department
+          in: query
+          description: Filter by department
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Employee utilization rates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  utilization_data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmployeeUtilization'
+                  period:
+                    type: object
+                    properties:
+                      start_date:
+                        type: string
+                        format: date
+                      end_date:
+                        type: string
+                        format: date
+                  average_utilization:
+                    type: number
+                    format: float
+                    description: Firm-wide average utilization rate
+        '400':
+          description: Invalid date parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/department-hours:
+    get:
+      summary: Get hours breakdown by department
+      description: Aggregate billable hours by department for chart visualization
+      parameters:
+        - name: period
+          in: query
+          description: Time period for aggregation
+          required: false
+          schema:
+            type: string
+            enum: [current_month, last_month, quarter, year]
+            default: current_month
+        - name: billable_only
+          in: query
+          description: Include only billable hours
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Department hours breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  department_data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DepartmentHours'
+                  total_hours:
+                    type: number
+                    format: float
+                    description: Total hours across all departments
+                  period_info:
+                    type: object
+                    properties:
+                      period:
+                        type: string
+                        description: Period name
+                      start_date:
+                        type: string
+                        format: date
+                      end_date:
+                        type: string
+                        format: date
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/trends:
+    get:
+      summary: Get time tracking trends
+      description: Historical trends for hours, employees, and utilization
+      parameters:
+        - name: metric
+          in: query
+          description: Metric to analyze
+          required: true
+          schema:
+            type: string
+            enum: [hours, employees, utilization, productivity]
+        - name: period
+          in: query
+          description: Time period granularity
+          required: false
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: weekly
+        - name: duration
+          in: query
+          description: Duration to look back
+          required: false
+          schema:
+            type: string
+            enum: [1_month, 3_months, 6_months, 1_year]
+            default: 3_months
+      responses:
+        '200':
+          description: Trend analysis data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trend_data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrendDataPoint'
+                  metric:
+                    type: string
+                    description: Analyzed metric
+                  period:
+                    type: string
+                    description: Data granularity
+                  summary:
+                    $ref: '#/components/schemas/TrendSummary'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    DashboardOverview:
+      type: object
+      properties:
+        total_employees:
+          type: integer
+          description: Current number of active employees
+          example: 45
+        total_hours_current_month:
+          type: number
+          format: float
+          description: Total billable hours this month
+          example: 1247.5
+        average_utilization_rate:
+          type: number
+          format: float
+          description: Firm-wide average utilization percentage
+          example: 87.3
+        new_employees_this_month:
+          type: integer
+          description: Employees hired this month
+          example: 2
+        top_performer:
+          type: object
+          properties:
+            employee_name:
+              type: string
+              example: "Sarah Johnson"
+            hours:
+              type: number
+              format: float
+              example: 165.5
+            utilization_rate:
+              type: number
+              format: float
+              example: 94.2
+        department_breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              department:
+                type: string
+                example: "Corporate Law"
+              employee_count:
+                type: integer
+                example: 18
+              total_hours:
+                type: number
+                format: float
+                example: 567.5
+        period_comparison:
+          type: object
+          properties:
+            current_period:
+              type: object
+              properties:
+                hours:
+                  type: number
+                  format: float
+                utilization:
+                  type: number
+                  format: float
+            previous_period:
+              type: object
+              properties:
+                hours:
+                  type: number
+                  format: float
+                utilization:
+                  type: number
+                  format: float
+            change_percentage:
+              type: object
+              properties:
+                hours:
+                  type: number
+                  format: float
+                utilization:
+                  type: number
+                  format: float
+      required:
+        - total_employees
+        - total_hours_current_month
+        - average_utilization_rate
+
+    EmployeeUtilization:
+      type: object
+      properties:
+        employee_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        employee_name:
+          type: string
+          example: "John Doe"
+        department:
+          type: string
+          example: "Litigation"
+        total_hours:
+          type: number
+          format: float
+          description: Total hours worked
+          example: 152.0
+        billable_hours:
+          type: number
+          format: float
+          description: Billable hours worked
+          example: 138.5
+        utilization_rate:
+          type: number
+          format: float
+          description: Utilization percentage
+          example: 91.1
+        target_hours:
+          type: number
+          format: float
+          description: Expected hours for period
+          example: 160.0
+        efficiency_rating:
+          type: string
+          enum: [excellent, good, average, below_average]
+          example: "good"
+      required:
+        - employee_id
+        - employee_name
+        - department
+        - total_hours
+        - billable_hours
+        - utilization_rate
+
+    DepartmentHours:
+      type: object
+      properties:
+        department:
+          type: string
+          description: Department name
+          example: "Corporate Law"
+        total_hours:
+          type: number
+          format: float
+          description: Total hours for department
+          example: 892.5
+        billable_hours:
+          type: number
+          format: float
+          description: Billable hours for department
+          example: 803.0
+        employee_count:
+          type: integer
+          description: Number of employees in department
+          example: 12
+        average_hours_per_employee:
+          type: number
+          format: float
+          description: Average hours per employee
+          example: 74.4
+        percentage_of_total:
+          type: number
+          format: float
+          description: Percentage of firm total hours
+          example: 35.7
+      required:
+        - department
+        - total_hours
+        - billable_hours
+        - employee_count
+
+    TrendDataPoint:
+      type: object
+      properties:
+        period:
+          type: string
+          description: Time period label (e.g., "2023-W01", "2023-01")
+          example: "2023-W15"
+        value:
+          type: number
+          format: float
+          description: Metric value for this period
+          example: 1247.5
+        change_from_previous:
+          type: number
+          format: float
+          description: Change from previous period
+          example: 15.2
+        change_percentage:
+          type: number
+          format: float
+          description: Percentage change from previous period
+          example: 1.23
+      required:
+        - period
+        - value
+
+    TrendSummary:
+      type: object
+      properties:
+        overall_trend:
+          type: string
+          enum: [increasing, decreasing, stable]
+          description: General trend direction
+          example: "increasing"
+        average_value:
+          type: number
+          format: float
+          description: Average value over period
+          example: 1156.8
+        highest_value:
+          type: number
+          format: float
+          description: Highest value in period
+          example: 1389.0
+        lowest_value:
+          type: number
+          format: float
+          description: Lowest value in period
+          example: 945.5
+        total_change:
+          type: number
+          format: float
+          description: Total change from start to end
+          example: 187.3
+        total_change_percentage:
+          type: number
+          format: float
+          description: Total percentage change
+          example: 17.65
+      required:
+        - overall_trend
+        - average_value
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid date range"
+        code:
+          type: string
+          description: Error code
+          example: "INVALID_DATE_RANGE"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - timestamp
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

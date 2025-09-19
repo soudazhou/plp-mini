@@ -175,3 +175,116 @@ Demonstrate understanding of:
 - Real-time notifications
 
 This MVP focuses on demonstrating technical competency with each tool rather than solving complex business problems. Perfect for learning and interview preparation!
+
+3.
+
+/plan  Implement LegalAnalytics Mini MVP using Pirical's exact tech stack with extensive 
+educational documentation for a Java/Golang developer learning these technologies.
+
+LEARNING-FOCUSED ARCHITECTURE
+Create a simple but complete full-stack application demonstrating every technology in Pirical's stack 
+with detailed comparative documentation.
+
+BACKEND: Python/FastAPI (vs Java Spring Boot)
+- FastAPI application with 4 main endpoints: employees CRUD, time entries CRUD, file upload, search
+- SQLAlchemy models for Employee and TimeEntry (document differences from JPA entities)
+- Pydantic models for request/response validation (compare to Java Bean Validation)
+- OAuth2 with password flow for basic authentication (document vs Spring Security)
+- Pandas integration for CSV processing (compare to Java CSV libraries)
+- Async/await patterns throughout (document vs CompletableFuture/reactive streams)
+
+FRONTEND: Angular/TypeScript (vs Traditional Java Web)
+- Angular 15+ with TypeScript strict mode
+- 4 main components: employee-list, employee-form, time-tracking, dashboard
+- Angular Material for basic UI components
+- HTTP client service for API calls (document vs RestTemplate/WebClient)
+- Simple routing with lazy loading
+- Form validation using reactive forms (compare to server-side validation)
+- Basic error handling and loading states
+
+DATABASE DESIGN: PostgreSQL (OLTP Focus)
+Simple schema demonstrating SQLAlchemy vs JPA patterns:
+- employees table: id, name, email, department, hire_date, created_at
+- time_entries table: id, employee_id, date, hours, description, billable, created_at
+- Basic foreign key relationships
+- Document migration patterns vs JPA schema generation
+
+ELASTICSEARCH INTEGRATION (Basic)
+- Index employee documents for search functionality
+- Simple mapping with name, email, department fields
+- Basic search endpoint with query_string queries
+- Document indexing on employee create/update (compare to Lucene/Solr patterns)
+
+AWS SERVICES INTEGRATION (Learning Focus)
+- S3: Store uploaded CSV files (document boto3 vs AWS Java SDK)
+- SQS: Simple queue for CSV processing jobs (compare to JMS/RabbitMQ)
+- SNS: Basic notification on processing completion
+- Secrets Manager: Database credentials (vs application.properties encryption)
+- EC2: Simple deployment (document vs JAR deployment)
+
+PROJECT STRUCTURE
+src/backend/
+- app/main.py (FastAPI app vs @SpringBootApplication)
+- models/ (SQLAlchemy models vs JPA @Entity)
+- schemas/ (Pydantic models vs DTOs/Request objects)
+- api/ (Route handlers vs @RestController)
+- services/ (Business logic vs @Service)
+- database.py (SQLAlchemy setup vs JPA config)
+- auth.py (OAuth2 setup vs Spring Security)
+- requirements.txt (vs Maven pom.xml)
+- Dockerfile (Multi-stage build)
+- README_LEARNING.md (Python learning notes)
+
+src/frontend/
+- src/app/components/ (Angular components vs JSP/Thymeleaf)
+- src/app/services/ (HTTP services vs RestTemplate usage)
+- src/app/models/ (TypeScript interfaces)
+- package.json (vs Maven dependencies)
+- README_LEARNING.md (Angular learning notes)
+
+infrastructure/
+- docker-compose.yml (Local development)
+- aws/deployment.yml (Simple EC2 setup)
+- README_LEARNING.md (Infrastructure learning notes)
+
+IMPLEMENTATION PHASES
+Phase 1: Basic FastAPI backend with PostgreSQL (compare Python patterns to Java)
+Phase 2: Angular frontend with basic CRUD (document TypeScript vs Java differences)
+Phase 3: File upload with Pandas CSV processing (compare to Java CSV handling)
+Phase 4: Elasticsearch integration for search (compare to Java Lucene patterns)
+Phase 5: AWS services integration (compare boto3 to AWS Java SDK)
+Phase 6: Docker containerization and deployment (compare to JAR deployment)
+
+LEARNING DOCUMENTATION REQUIREMENTS
+Every major component must include:
+- Header comments explaining purpose and key concepts
+- Inline comments comparing to Java/Go equivalents
+- Performance and memory usage notes where significantly different
+- Common gotchas when transitioning from Java/Go
+- Best practice explanations for the new language/framework
+
+KEY COMPARISONS TO DOCUMENT
+- Python dynamic typing vs Java static typing (when it matters)
+- FastAPI dependency injection vs Spring's IoC container
+- SQLAlchemy session management vs JPA EntityManager
+- Angular component lifecycle vs traditional MVC request lifecycle
+- Python async/await vs Java CompletableFuture patterns
+- Pandas DataFrame operations vs Java Stream API
+- Python error handling patterns vs Java exceptions
+- TypeScript interfaces vs Java interfaces and classes
+
+DEPLOYMENT STRATEGY
+- Docker containers for both frontend and backend (document vs JAR deployment)
+- Simple nginx reverse proxy (compare to embedded Tomcat)
+- Environment-based configuration (compare to Spring profiles)
+- Basic monitoring and logging (compare to Spring Boot Actuator)
+
+This plan creates a complete learning experience touching every technology while maintaining simplicity 
+for educational purposes. Each implementation decision should be documented with clear comparisons to 
+Java/Go equivalents.
+
+
+4. (optional)
+
+looks good, for AWS component, I don't currently have a personal account, is there a way we could 
+  still get this working locally? Even just for demo purpose?

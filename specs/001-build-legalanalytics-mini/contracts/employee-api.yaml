@@ -1,0 +1,468 @@
+openapi: 3.0.3
+info:
+  title: LegalAnalytics Mini - Employee API
+  description: Employee management endpoints for law firm people analytics
+  version: 1.0.0
+  contact:
+    name: LegalAnalytics Mini
+    email: dev@legalanalytics.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://legalanalytics-mini.aws.com/api/v1
+    description: Production server
+
+paths:
+  /employees:
+    get:
+      summary: List all employees
+      description: Retrieve paginated list of all employees with optional filtering
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: department
+          in: query
+          description: Filter by department name
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search by name or email (partial match)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with employee list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employees:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employee'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - invalid or missing authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create new employee
+      description: Create a new employee record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreate'
+      responses:
+        '201':
+          description: Employee created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          description: Validation error - invalid employee data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employees/{employeeId}:
+    get:
+      summary: Get employee by ID
+      description: Retrieve detailed information for a specific employee
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          description: Unique identifier for the employee
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Employee found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update employee
+      description: Update existing employee information
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          description: Unique identifier for the employee
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdate'
+      responses:
+        '200':
+          description: Employee updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete employee
+      description: Remove employee from system (soft delete)
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          description: Unique identifier for the employee
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Employee deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employees/search:
+    get:
+      summary: Search employees using Elasticsearch
+      description: Advanced search for employees with full-text capabilities
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query string
+          schema:
+            type: string
+            minLength: 1
+        - name: department
+          in: query
+          description: Filter by department
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employees:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employee'
+                  total:
+                    type: integer
+                    description: Total number of matching employees
+                  query:
+                    type: string
+                    description: Original search query
+        '400':
+          description: Invalid search parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Employee:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Full name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "john.doe@lawfirm.com"
+        department:
+          type: string
+          description: Department name
+          example: "Corporate Law"
+        hire_date:
+          type: string
+          format: date
+          description: Date of hire
+          example: "2023-01-15"
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+          example: "2023-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - id
+        - name
+        - email
+        - department
+        - hire_date
+        - created_at
+        - updated_at
+
+    EmployeeCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Full name
+          example: "Jane Smith"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "jane.smith@lawfirm.com"
+        department_id:
+          type: string
+          format: uuid
+          description: Department identifier
+          example: "456e7890-e89b-12d3-a456-426614174000"
+        hire_date:
+          type: string
+          format: date
+          description: Date of hire
+          example: "2023-02-01"
+      required:
+        - name
+        - email
+        - department_id
+        - hire_date
+
+    EmployeeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Full name
+        email:
+          type: string
+          format: email
+          description: Email address
+        department_id:
+          type: string
+          format: uuid
+          description: Department identifier
+        hire_date:
+          type: string
+          format: date
+          description: Date of hire
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 20
+        total:
+          type: integer
+          description: Total number of items
+          example: 45
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 3
+      required:
+        - page
+        - limit
+        - total
+        - pages
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Employee not found"
+        code:
+          type: string
+          description: Error code
+          example: "EMPLOYEE_NOT_FOUND"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - timestamp
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: General error message
+          example: "Validation failed"
+        code:
+          type: string
+          description: Error code
+          example: "VALIDATION_ERROR"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field name
+                example: "email"
+              message:
+                type: string
+                description: Field-specific error message
+                example: "Email is required"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-15T10:30:00Z"
+      required:
+        - error
+        - code
+        - details
+        - timestamp
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+security:
+  - bearerAuth: []
