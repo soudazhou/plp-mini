@@ -47,7 +47,12 @@
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+**Learning-First Approach**: Does design include educational commentary and Java/Go comparisons?
+**Specification-Driven**: Are requirements fully specified before implementation planning?
+**Technology Stack Adherence**: Does plan use only Python/FastAPI, TypeScript/Angular, PostgreSQL, Elasticsearch, AWS?
+**Documentation Standards**: Are learning materials and comparative analysis planned?
+**Quality Standards**: Are educational unit tests and production patterns included?
+**Realistic Constraints**: Does design reflect law firm security and scalability requirements?
 
 ## Project Structure
 
@@ -208,4 +213,4 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v2.1.1 - See `/memory/constitution.md`*
+*Based on Constitution v1.0.0 - See `/memory/constitution.md`*
