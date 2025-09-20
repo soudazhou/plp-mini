@@ -36,7 +36,7 @@ Full-stack web application with FastAPI backend, Angular frontend, PostgreSQL da
 ### Employee API Contract Tests
 - [x] T016 [P] Contract test POST /api/v1/employees in backend/tests/contract/test_employee_post.py
 - [x] T017 [P] Contract test GET /api/v1/employees in backend/tests/contract/test_employee_list.py
-- [ ] T018 [P] Contract test GET /api/v1/employees/{id} in backend/tests/contract/test_employee_get.py
+- [x] T018 [P] Contract test GET /api/v1/employees/{id} in backend/tests/contract/test_employee_get.py
 - [ ] T019 [P] Contract test PUT /api/v1/employees/{id} in backend/tests/contract/test_employee_put.py
 - [ ] T020 [P] Contract test DELETE /api/v1/employees/{id} in backend/tests/contract/test_employee_delete.py
 - [ ] T021 [P] Contract test GET /api/v1/employees/search in backend/tests/contract/test_employee_search.py
