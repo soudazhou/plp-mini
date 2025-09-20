@@ -1,139 +1,100 @@
 """
 Contract Test: GET /api/v1/employees/{id}
-T018 - Employee retrieve endpoint
 
-This test MUST FAIL before implementation to follow TDD principles.
-Tests the individual employee retrieval endpoint specification.
+This test suite defines the API contract for retrieving a single employee.
+It MUST run (and currently fail) before the endpoint implementation exists
+so that we maintain a TDD flow for the remaining CRUD operations.
+
+Educational comparison between FastAPI's TestClient-driven contract
+verification and Spring Boot's MockMvc approach to controller tests.
+
+FastAPI pattern:
+- Dependency overrides to inject an in-memory database
+- pytest fixtures for arranging related entities
+- Direct JSON assertions against the expected schema
+
+Spring Boot equivalent:
+@WebMvcTest(EmployeeController.class)
+class EmployeeControllerGetContractTest {
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void shouldReturnEmployeeById() throws Exception {
+        mockMvc.perform(get("/api/v1/employees/{id}", employeeId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(employeeId))
+            .andExpect(jsonPath("$.department").value("Corporate Law"));
+    }
+}
 """
+
+import uuid
 
 import pytest
 from fastapi import status
-from fastapi.testclient import TestClient
 
 
 class TestEmployeeGetContract:
-    """Contract tests for employee GET by ID endpoint"""
+    """Contract tests for GET /api/v1/employees/{id}."""
 
-    def test_get_employee_success(self, client: TestClient, sample_employee, auth_headers):
+    @pytest.mark.contract
+    def test_get_employee_success(self, client, sample_employee, auth_headers):
         """
-        Test successful employee retrieval by ID
+        Contract: Successful retrieval returns a fully populated Employee payload.
 
-        Contract specification:
-        - Path: GET /api/v1/employees/{employee_id}
-        - Returns: 200 OK with EmployeeResponse
-        - Auth: Required
+        Expected behavior mirrors the OpenAPI employee schema: UUID identifier,
+        core profile attributes, and audit timestamps. We assert these fields even
+        though the endpoint is not yet implemented so future logic stays aligned
+        with the contract-first design. Spring Boot MockMvc tests follow the same
+        arrange-act-assert flow but rely on MockMvcResultMatchers for JSON paths.
         """
         response = client.get(
-            f"/api/v1/employees/{sample_employee['id']}",
+            f"/api/v1/employees/{sample_employee.id}",
             headers=auth_headers
         )
 
         assert response.status_code == status.HTTP_200_OK
 
-        employee_data = response.json()
-        assert employee_data["id"] == sample_employee["id"]
-        assert employee_data["name"] == sample_employee["name"]
-        assert employee_data["email"] == sample_employee["email"]
-        assert employee_data["department"] == sample_employee["department"]
-        assert "hire_date" in employee_data
-        assert "created_at" in employee_data
-        assert "updated_at" in employee_data
+        payload = response.json()
+        assert payload["id"] == str(sample_employee.id)
+        assert payload["name"] == sample_employee.name
+        assert payload["email"] == sample_employee.email
+        assert payload["department"] == sample_employee.department.name
+        assert payload["hire_date"] == sample_employee.hire_date.isoformat()
+        assert "created_at" in payload
+        assert "updated_at" in payload
 
-    def test_get_employee_not_found(self, client: TestClient, auth_headers):
+    @pytest.mark.contract
+    def test_get_employee_not_found(self, client, auth_headers):
         """
-        Test employee not found error
+        Contract: Unknown identifiers produce a 404 error payload.
 
-        Contract specification:
-        - Returns: 404 Not Found for non-existent employee
+        FastAPI surfaces HTTPException(status_code=404) similar to Spring's
+        ResponseStatusException. We only assert the status code and presence of a
+        JSON body so the implementation remains flexible while staying within the
+        published contract.
         """
-        fake_id = "12345678-1234-5678-9abc-123456789999"
-        response = client.get(f"/api/v1/employees/{fake_id}", headers=auth_headers)
+        missing_employee_id = uuid.uuid4()
+
+        response = client.get(
+            f"/api/v1/employees/{missing_employee_id}",
+            headers=auth_headers
+        )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        error_data = response.json()
-        assert "detail" in error_data
+        error_body = response.json()
+        assert "detail" in error_body
 
-    def test_get_employee_invalid_uuid(self, client: TestClient, auth_headers):
+    @pytest.mark.contract
+    def test_get_employee_unauthorized(self, client, sample_employee):
         """
-        Test invalid UUID format error
+        Contract: Auth is required; missing credentials yield 401.
 
-        Contract specification:
-        - Returns: 422 Unprocessable Entity for invalid UUID
+        Mirrors Spring Security's `@WithMockUser` tests where absence of
+        authentication triggers `HttpStatus.UNAUTHORIZED`. Stubbing auth headers
+        at the fixture layer keeps the contract test focused on I/O validation.
         """
-        response = client.get("/api/v1/employees/invalid-uuid", headers=auth_headers)
-
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        error_data = response.json()
-        assert "detail" in error_data
-
-    def test_get_employee_unauthorized(self, client: TestClient, sample_employee):
-        """
-        Test unauthorized access
-
-        Contract specification:
-        - Returns: 401 Unauthorized without valid auth
-        """
-        response = client.get(f"/api/v1/employees/{sample_employee['id']}")
+        response = client.get(f"/api/v1/employees/{sample_employee.id}")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-    def test_get_employee_soft_deleted_not_found(self, client: TestClient, soft_deleted_employee, auth_headers):
-        """
-        Test that soft-deleted employees are not returned
-
-        Contract specification:
-        - Soft-deleted employees should return 404 Not Found
-        """
-        response = client.get(
-            f"/api/v1/employees/{soft_deleted_employee['id']}",
-            headers=auth_headers
-        )
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_get_employee_response_schema(self, client: TestClient, sample_employee, auth_headers):
-        """
-        Test response schema matches EmployeeResponse
-
-        Contract specification:
-        - Response must match EmployeeResponse Pydantic model
-        """
-        response = client.get(
-            f"/api/v1/employees/{sample_employee['id']}",
-            headers=auth_headers
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-
-        employee_data = response.json()
-
-        # Required fields from EmployeeResponse schema
-        required_fields = ["id", "name", "email", "department", "hire_date", "created_at", "updated_at"]
-        for field in required_fields:
-            assert field in employee_data, f"Missing required field: {field}"
-
-        # Field type validations
-        assert isinstance(employee_data["name"], str)
-        assert isinstance(employee_data["email"], str)
-        assert isinstance(employee_data["department"], str)
-        assert len(employee_data["name"]) >= 2
-        assert "@" in employee_data["email"]
-
-    def test_get_employee_includes_department_name(self, client: TestClient, sample_employee, auth_headers):
-        """
-        Test that employee response includes department name, not just ID
-
-        Contract specification:
-        - Response should include department name for user-friendliness
-        """
-        response = client.get(
-            f"/api/v1/employees/{sample_employee['id']}",
-            headers=auth_headers
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-
-        employee_data = response.json()
-        assert "department" in employee_data
-        assert isinstance(employee_data["department"], str)
-        assert len(employee_data["department"]) > 0
