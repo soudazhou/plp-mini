@@ -1,0 +1,15 @@
+# Local development environments
+.venv/
+.venv39/
+.venv_py313/
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+
+# Local SQLite database
+backend/test.db
+
+# Editor folders
+.vscode/
+.idea/

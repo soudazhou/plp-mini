@@ -18,6 +18,7 @@ Spring Boot Equivalent:
 import asyncio
 import os
 import sys
+import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -27,7 +28,7 @@ from typing import List
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 
 from models.base import Base
 from models.department import Department
@@ -54,7 +55,7 @@ class DatabaseSeeder:
             self.settings.database_url,
             echo=self.settings.database.echo,
         )
-        self.SessionLocal = sessionmaker(bind=self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def create_tables(self) -> None:
         """
@@ -137,7 +138,7 @@ class DatabaseSeeder:
             print(f"✅ Created {len(departments_data)} departments")
             return departments
 
-    def seed_users_and_employees(self, departments: List[Department]) -> List[Employee]:
+    def seed_users_and_employees(self, departments: List[Department]) -> List[uuid.UUID]:
         """
         Create sample users and employees.
 
@@ -216,13 +217,13 @@ class DatabaseSeeder:
         # Create department name to object mapping
         dept_map = {dept.name: dept for dept in departments}
 
-        employees = []
+        employee_ids: List[uuid.UUID] = []
         with self.SessionLocal() as session:
             for emp_data in employees_data:
                 # Check if employee already exists
                 existing_emp = session.query(Employee).filter_by(email=emp_data["email"]).first()
                 if existing_emp:
-                    employees.append(existing_emp)
+                    employee_ids.append(existing_emp.id)
                     continue
 
                 # Create employee
@@ -251,13 +252,13 @@ class DatabaseSeeder:
                         user.set_password("password123")
                         session.add(user)
 
-                employees.append(employee)
+                employee_ids.append(employee.id)
 
             session.commit()
             print(f"✅ Created {len(employees_data)} employees with users")
-            return employees
+            return employee_ids
 
-    def seed_time_entries(self, employees: List[Employee]) -> None:
+    def seed_time_entries(self, employee_ids: List[uuid.UUID]) -> None:
         """
         Create sample time entries for the last 30 days.
 
@@ -307,6 +308,13 @@ class DatabaseSeeder:
 
         entries_created = 0
         with self.SessionLocal() as session:
+            employees = (
+                session.query(Employee)
+                .options(joinedload(Employee.department))
+                .filter(Employee.id.in_(employee_ids))
+                .all()
+            )
+
             # Generate entries for last 30 days
             start_date = date.today() - timedelta(days=30)
 

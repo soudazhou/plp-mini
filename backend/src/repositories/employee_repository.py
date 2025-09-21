@@ -38,6 +38,10 @@ class EmployeeRepository:
             .first()
         )
 
+    def find_by_id(self, employee_id: uuid.UUID) -> Optional[Employee]:
+        """Alias for get_by_id to match service expectations."""
+        return self.get_by_id(employee_id)
+
     def get_by_email(self, email: str) -> Optional[Employee]:
         """Get employee by email address."""
         return (
